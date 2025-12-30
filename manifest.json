@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "ASC Plus - Murilo Lagamba",
+  "version": "2.7",
+  "permissions": ["storage", "scripting"],
+  "host_permissions": ["*://*.ascbrazil.com.br/*"],
+  "action": {
+    "default_title": "Abrir Mensagens"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.ascbrazil.com.br/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
