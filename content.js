@@ -54,6 +54,11 @@
       .dev-footer { text-align: center; margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; gap: 2px; }
       .dev-label { font-size: 8px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 2px; }
       .dev-name { color: #00d2ff; font-weight: 900; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0,210,255,0.3); }
+      
+      /* Estilo dos botões de Backup */
+      .backup-group { display: flex; gap: 8px; margin-top: 10px; }
+      .btn-backup { flex: 1; font-size: 9px; padding: 6px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-weight: bold; }
+      .btn-backup:hover { background: rgba(255,255,255,0.1); border-color: #00d2ff; }
     `;
     document.head.appendChild(style);
 
@@ -80,6 +85,13 @@
           <div id="w-cancel" class="btn-cancel">Cancelar</div>
         </div>
         <button id="btn-open-add" class="btn-main">+ INCLUIR MENSAGEM</button>
+        
+        <div class="backup-group">
+          <button id="btn-export" class="btn-backup">Exportar Backup</button>
+          <button id="btn-import" class="btn-backup">Importar Backup</button>
+          <input type="file" id="import-file" style="display:none" accept=".json">
+        </div>
+
         <div class="dev-footer">
           <span class="dev-label">Desenvolvido por</span>
           <span class="dev-name">Murilo Lagamba</span>
@@ -88,7 +100,7 @@
     `;
     document.body.appendChild(widget);
 
-    // MOVIMENTAÇÃO E RESIZE (MANTIDO)
+    // MOVIMENTAÇÃO E RESIZE
     const startResizing = (e, side) => {
       e.preventDefault();
       const startX = e.clientX; const startWidth = widget.offsetWidth; const startLeft = widget.offsetLeft;
@@ -117,7 +129,7 @@
     });
     document.addEventListener('mouseup', () => drag = false);
 
-    // BUSCA DE CAMPO MELHORADA (RECURSIVA)
+    // BUSCA DE CAMPO MELHORADA
     function findTargetField(doc = document) {
       const selectors = ['textarea:not(#w-input)', '[contenteditable="true"]:not(#w-input)', 'input[placeholder*="Buscar"]', '#textoMensagem', '.chat-input textarea'];
       for (let s of selectors) {
@@ -135,7 +147,7 @@
     }
 
     async function smartFill(text) {
-      if (isProcessingClick) return; // TRAVA DE DUPLICIDADE
+      if (isProcessingClick) return;
       isProcessingClick = true;
       setTimeout(() => { isProcessingClick = false; }, 500);
 
@@ -147,20 +159,50 @@
 
       target.focus();
       try {
-        // LIMPEZA PRÉVIA PARA EVITAR ACÚMULO
         if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') { target.value = ''; } 
         else { target.innerHTML = ''; }
 
-        // INSERÇÃO NATIVA
         if (!document.execCommand('insertText', false, text)) {
             if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') { target.value = text; } 
             else { target.innerHTML = text; }
         }
         
-        // EVENTOS PARA O SISTEMA ASC
         ['input', 'change', 'blur', 'keyup'].forEach(ev => target.dispatchEvent(new Event(ev, { bubbles: true })));
       } catch (e) { console.error(e); }
     }
+
+    // FUNÇÕES DE BACKUP (EXPORTAR / IMPORTAR)
+    document.getElementById('btn-export').onclick = () => {
+      if (messages.length === 0) return alert("Não há mensagens para exportar.");
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(messages, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "backup_mensagens_asc.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    };
+
+    document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
+
+    document.getElementById('import-file').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedMsgs = JSON.parse(event.target.result);
+          if (Array.isArray(importedMsgs)) {
+            if (confirm(`Deseja importar ${importedMsgs.length} mensagens? Isso substituirá as atuais.`)) {
+              messages = importedMsgs;
+              save();
+            }
+          } else { alert("Arquivo de backup inválido."); }
+        } catch (err) { alert("Erro ao ler o arquivo JSON."); }
+        e.target.value = ''; // Limpa o input
+      };
+      reader.readAsText(file);
+    };
 
     const render = () => {
       const list = document.getElementById('w-list');

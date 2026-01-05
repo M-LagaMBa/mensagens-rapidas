@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Widgetize ASC",
-  "version": "2.8",
-  "permissions": ["storage", "scripting"],
+  "description": "Mensagens rápidas para o SAC Messenger.",
+  "version": "3.0",
+  "permissions": ["storage"],
   "host_permissions": ["*://*.ascbrazil.com.br/*"],
   "action": {
     "default_title": "Abrir Mensagens"
