@@ -94,7 +94,7 @@
 
         <div class="dev-footer">
           <span class="dev-label">Desenvolvido por</span>
-          <span class="dev-name">Murilo Lagamba</span>
+          <span class="dev-name">Lagamba Tech</span>
         </div>
       </div>
     `;
