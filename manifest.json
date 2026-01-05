@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ASC Plus - Murilo Lagamba",
-  "version": "2.7",
+  "name": "Widgetize ASC",
+  "version": "2.8",
   "permissions": ["storage", "scripting"],
   "host_permissions": ["*://*.ascbrazil.com.br/*"],
   "action": {
