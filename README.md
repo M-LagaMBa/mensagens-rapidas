@@ -33,5 +33,3 @@
 2. Defina uma **Tag** para organizar a mensagem.
 3. Para usar: **Clique primeiro no campo de texto** (onde você digita no chat ou na barra de busca) e depois clique na mensagem desejada dentro do widget.
 
----
-Desenvolvido com ❤️ por **Murilo Lagamba**
