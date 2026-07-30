@@ -1,6 +1,6 @@
 # Mensagens Rápidas 🚀
 
-**Mensagens Rápidas** é uma extensão desenvolvida para otimizar o atendimento no SAC Messenger da ASC Brazil e no chat da Cilia. Ela permite gerenciar, favoritar e inserir mensagens pré-definidas instantaneamente nos campos de chat ou busca, eliminando a digitação repetitiva.
+**Mensagens Rápidas** é uma extensão desenvolvida para otimizar o atendimento no SAC Messenger da ASC Brazil e no chat do Blip. Ela permite gerenciar, favoritar e inserir mensagens pré-definidas instantaneamente nos campos de chat ou busca, eliminando a digitação repetitiva.
 
 ## ✨ Funcionalidades
 
@@ -33,7 +33,7 @@
 2. Abra o Microsoft Edge (ou Chrome) e acesse `edge://extensions` (ou `chrome://extensions`).
 3. Ative o **Modo do desenvolvedor** no canto inferior esquerdo.
 4. Clique em **Carregar descompactada** e selecione a pasta onde estão os arquivos do projeto.
-5. A extensão aparecerá no seu navegador. Acesse o domínio da ASC Brazil ou da Cilia e clique no ícone ou use `Alt + Q`.
+5. A extensão aparecerá no seu navegador. Acesse o domínio da ASC Brazil ou do Blip e clique no ícone ou use `Alt + Q`.
 
 ## 📌 Uso
 
