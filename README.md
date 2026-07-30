@@ -18,7 +18,7 @@
 ## 🌐 Domínios Suportados
 
 - `*.ascbrazil.com.br` (SAC Messenger)
-- `*.blip.ai` (Chat Cilia)
+- `*.blip.ai` (Chat Blip)
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -56,5 +56,3 @@
 - Corrigido comportamento em que o widget não abria no primeiro clique após a injeção do script, exigindo um segundo clique.
 - Corrigido vazamento de listener de `mouseup` durante o redimensionamento lateral.
 
----
-Desenvolvido com ❤️ por **Murilo Lagamba**
