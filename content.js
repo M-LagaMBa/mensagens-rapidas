@@ -6,6 +6,7 @@
   let currentFilter = "TODAS";
   let editingId = null;
   let isProcessingClick = false; // Trava para evitar duplicação
+  let draggedId = null;
 
   function initWidget() {
     const existing = document.getElementById('m-rapidas-widget');
@@ -18,7 +19,7 @@
     style.textContent = `
       #m-rapidas-widget {
         position: fixed; top: 20px; right: 20px; width: 380px; height: 650px;
-        min-width: 280px; background: rgba(13, 17, 23, 0.98);
+        min-width: 280px; min-height: 300px; background: rgba(13, 17, 23, 0.98);
         border: 1px solid rgba(0, 210, 255, 0.3); border-radius: 24px;
         z-index: 2147483647; display: flex; flex-direction: column;
         box-shadow: 0 30px 60px rgba(0,0,0,0.8); font-family: 'Inter', sans-serif;
@@ -27,6 +28,9 @@
       .resizer { position: absolute; top: 0; width: 15px; height: 100%; cursor: ew-resize; z-index: 10001; }
       .resizer-left { left: 0; }
       .resizer-right { right: 0; }
+      .resizer-vertical { position: absolute; left: 0; width: 100%; height: 15px; cursor: ns-resize; z-index: 10001; }
+      .resizer-top { top: 0; }
+      .resizer-bottom { bottom: 0; }
       #m-rapidas-widget.is-minimized { height: 55px !important; width: 250px !important; overflow: hidden; }
       #m-rapidas-widget.is-minimized .w-body, #m-rapidas-widget.is-minimized .w-footer { display: none !important; }
       .w-header { padding: 0 20px; height: 55px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: move; flex-shrink: 0; border-radius: 24px 24px 0 0; }
@@ -46,6 +50,10 @@
       .tool-icon { font-size: 15px; opacity: 0.4; transition: 0.2s; cursor: pointer; }
       .tool-icon:hover { opacity: 1; color: #00d2ff; }
       .tool-icon.active { opacity: 1; color: #fbbf24; }
+      .drag-handle { cursor: grab; }
+      .drag-handle:active { cursor: grabbing; }
+      .msg-card.dragging { opacity: 0.35; }
+      .msg-card.drag-over { border-top: 2px solid #00d2ff; }
       .w-footer { padding: 15px; background: rgba(0,0,0,0.3); border-top: 1px solid rgba(255,255,255,0.05); flex-shrink: 0; }
       .add-form { display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }
       textarea { width: 100%; background: #000; color: #fff; border: 1px solid #333; border-radius: 12px; padding: 12px; resize: none; outline: none; font-size: 13px; }
@@ -67,6 +75,8 @@
     widget.innerHTML = `
       <div class="resizer resizer-left" id="res-l"></div>
       <div class="resizer resizer-right" id="res-r"></div>
+      <div class="resizer-vertical resizer-top" id="res-t"></div>
+      <div class="resizer-vertical resizer-bottom" id="res-b"></div>
       <div class="w-header" id="drag-h">
         <span>MENSAGENS RÁPIDAS</span>
         <div class="h-btn-group">
@@ -103,21 +113,34 @@
     // MOVIMENTAÇÃO E RESIZE
     const startResizing = (e, side) => {
       e.preventDefault();
-      const startX = e.clientX; const startWidth = widget.offsetWidth; const startLeft = widget.offsetLeft;
+      const startX = e.clientX; const startY = e.clientY;
+      const startWidth = widget.offsetWidth; const startHeight = widget.offsetHeight;
+      const startLeft = widget.offsetLeft; const startTop = widget.offsetTop;
       const onMouseMove = (mE) => {
         if (side === 'left') {
           const newWidth = startWidth + (startX - mE.clientX);
           if (newWidth > 280) { widget.style.width = newWidth + 'px'; widget.style.left = (startLeft - (startX - mE.clientX)) + 'px'; }
-        } else {
+        } else if (side === 'right') {
           const newWidth = startWidth + (mE.clientX - startX);
           if (newWidth > 280) widget.style.width = newWidth + 'px';
+        } else if (side === 'top') {
+          const newHeight = startHeight + (startY - mE.clientY);
+          if (newHeight > 300) { widget.style.height = newHeight + 'px'; widget.style.top = (startTop - (startY - mE.clientY)) + 'px'; }
+        } else if (side === 'bottom') {
+          const newHeight = startHeight + (mE.clientY - startY);
+          if (newHeight > 300) widget.style.height = newHeight + 'px';
         }
       };
-      const onMouseUp = () => window.removeEventListener('mousemove', onMouseMove);
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
       window.addEventListener('mousemove', onMouseMove); window.addEventListener('mouseup', onMouseUp);
     };
     document.getElementById('res-l').onmousedown = (e) => startResizing(e, 'left');
     document.getElementById('res-r').onmousedown = (e) => startResizing(e, 'right');
+    document.getElementById('res-t').onmousedown = (e) => startResizing(e, 'top');
+    document.getElementById('res-b').onmousedown = (e) => startResizing(e, 'bottom');
 
     let drag = false, oX, oY;
     document.getElementById('drag-h').onmousedown = (e) => {
@@ -204,6 +227,22 @@
       reader.readAsText(file);
     };
 
+    const commitOrder = (newOrderIds) => {
+      const visibleSet = new Set(newOrderIds);
+      const reordered = newOrderIds.map(id => messages.find(x => x.id === id)).filter(Boolean);
+      let inserted = false;
+      const result = [];
+      messages.forEach(m => {
+        if (visibleSet.has(m.id)) {
+          if (!inserted) { result.push(...reordered); inserted = true; }
+        } else {
+          result.push(m);
+        }
+      });
+      messages = result;
+      save();
+    };
+
     const render = () => {
       const list = document.getElementById('w-list');
       const filterBar = document.getElementById('tag-filters');
@@ -227,10 +266,12 @@
       filtered.sort((a,b) => b.fav - a.fav).forEach(m => {
         const card = document.createElement('div');
         card.className = `msg-card ${m.fav ? 'is-fav' : ''}`;
+        card.dataset.id = m.id;
         card.innerHTML = `
           <div class="tag-label">${m.tag || 'GERAL'}</div>
           <div class="msg-text">${m.text}</div>
           <div class="card-actions-bottom-left">
+            <span class="tool-icon drag-handle" title="Clique e arraste o card para reordenar">⠿</span>
             <span class="tool-icon fav-icon ${m.fav ? 'active' : ''}">★</span>
             <span class="tool-icon edit-txt">📝</span>
             <span class="tool-icon edit-tag">🏷️</span>
@@ -242,6 +283,31 @@
         card.querySelector('.edit-txt').onclick = (e) => { e.stopPropagation(); editingId = m.id; document.getElementById('w-input').value = m.text; toggleAdd(true, true); };
         card.querySelector('.edit-tag').onclick = (e) => { e.stopPropagation(); const nt = prompt("Nova Tag:", m.tag); if(nt) { m.tag = nt.toUpperCase(); save(); } };
         card.querySelector('.del-msg').onclick = (e) => { e.stopPropagation(); if(confirm("Apagar?")) { messages = messages.filter(x => x.id !== m.id); save(); } };
+
+        // REORDENAÇÃO (Drag and Drop)
+        card.draggable = true;
+        card.addEventListener('dragstart', (e) => {
+          e.stopPropagation();
+          draggedId = m.id;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (draggedId === null || m.id === draggedId) return;
+          const dragging = list.querySelector('.msg-card.dragging');
+          if (!dragging) return;
+          const rect = card.getBoundingClientRect();
+          const after = (e.clientY - rect.top) / rect.height > 0.5;
+          list.insertBefore(dragging, after ? card.nextSibling : card);
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          const newOrderIds = Array.from(list.querySelectorAll('.msg-card')).map(c => Number(c.dataset.id));
+          commitOrder(newOrderIds);
+          draggedId = null;
+        });
+
         list.appendChild(card);
       });
     };
