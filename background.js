@@ -14,7 +14,6 @@ chrome.action.onClicked.addListener((tab) => {
       },
       () => {
         // Após injetar o content.js pela primeira vez, abre o widget direto
-        // 
         chrome.tabs.sendMessage(tab.id, { action: "toggle_widget" });
       }
     );

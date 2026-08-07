@@ -16,7 +16,7 @@
 - **Aba de Recentes**: Acesse rapidamente as últimas 5 mensagens que você inseriu, sem precisar procurar na lista.
 - **Reordenação por Arraste**: Clique e arraste qualquer card para reorganizar suas mensagens na ordem que preferir. Favoritas continuam fixadas no topo, mas podem ser reordenadas entre si, assim como as demais.
 - **Filtros Ágeis**: Filtre rapidamente por tags, veja apenas as favoritadas ou as recentes.
-- **Menu de Backup**: Um ícone de engrenagem ao lado do botão de incluir mensagem abre um menu compacto com todas as ações de backup, sem ocupar espaço permanente na tela.
+- **Menu de Backup**: Um ícone de engrenagem ao lado do botão de incluir mensagem abre um menu compacto com todas as ações de backup, sem ocupar espaço permanente na tela. O menu fecha automaticamente após 15 segundos de inatividade, e também assim que uma exportação ou importação é concluída.
   - **Exportar / Importar**: Salve todas as mensagens em um arquivo JSON ou restaure a partir de um backup. A importação valida a estrutura do arquivo antes de aplicar, evitando dados corrompidos.
   - **Apagar Categoria**: Um dropdown discreto e rolável lista todas as tags com a quantidade de mensagens de cada uma. Clicar em uma tag apaga só as mensagens daquela categoria, sempre pedindo confirmação antes.
   - **Apagar Tudo**: Remove todas as mensagens salvas de uma vez, também com confirmação obrigatória informando o total que será apagado.
@@ -70,7 +70,7 @@
 - Adicionada validação de estrutura ao importar backup, evitando mensagens corrompidas ou IDs duplicados.
 - Adicionado atalho `Alt + N` para abrir o widget direto no formulário de nova mensagem.
 - Redesenhado o botão de incluir mensagem: visual mais discreto e profissional (contorno em vez de bloco cheio), com largura ajustada ao conteúdo. O botão SALVAR/ATUALIZAR do formulário passou a usar o mesmo estilo.
-- Adicionado menu de backup via ícone de engrenagem ao lado do botão de incluir mensagem, evitando ocupar espaço fixo na tela. O menu fecha automaticamente ao clicar fora dele.
+- Adicionado menu de backup via ícone de engrenagem ao lado do botão de incluir mensagem, evitando ocupar espaço fixo na tela. O menu fecha automaticamente ao clicar fora dele, após 15 segundos de inatividade, ou assim que uma exportação/importação é concluída com sucesso.
 - Adicionada opção de apagar todas as mensagens salvas ou apagar mensagens por categoria, ambas com confirmação obrigatória informando quantos itens serão afetados. A seleção de categoria usa um dropdown discreto e rolável, preparado para lidar com muitas tags sem poluir a tela.
 - Corrigido conflito entre o campo de busca do widget e o seletor que localiza o campo de busca do próprio site (ambos usavam `placeholder*="Buscar"`), que podia levar o preenchimento a cair no campo errado.
 - Código reorganizado em funções menores e mais específicas, facilitando manutenção futura.
@@ -85,4 +85,3 @@
 - Corrigida permissão `scripting` ausente no manifest, que impedia a injeção do widget quando a extensão era aberta pela primeira vez em uma aba.
 - Corrigido comportamento em que o widget não abria no primeiro clique após a injeção do script, exigindo um segundo clique.
 - Corrigido vazamento de listener de `mouseup` durante o redimensionamento lateral.
-

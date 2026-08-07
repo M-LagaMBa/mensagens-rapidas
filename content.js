@@ -358,9 +358,13 @@
       document.body.appendChild(downloadAnchorNode);
       downloadAnchorNode.click();
       downloadAnchorNode.remove();
+      closeBackupPopover();
     };
 
-    document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
+    document.getElementById('btn-import').onclick = () => {
+      document.getElementById('import-file').click();
+      scheduleBackupAutoClose(); // reinicia a contagem enquanto o usuário escolhe o arquivo
+    };
 
     document.getElementById('import-file').onchange = (e) => {
       const file = e.target.files[0];
@@ -385,6 +389,7 @@
           if (confirm(`Deseja importar ${normalized.length} mensagens? Isso substituirá as atuais.`)) {
             messages = normalized;
             save();
+            closeBackupPopover(); // fecha somente após a importação ser concluída
           }
         } catch (err) { alert("Erro ao ler o arquivo JSON."); }
         e.target.value = ''; // Limpa o input
@@ -394,34 +399,59 @@
   }
 
   // MENU FLUTUANTE DE BACKUP (ENGRENAGEM)
+  // Compartilhado entre setupBackup(), setupBackupPopover() e renderDeleteDropdownItems()
+  let backupCloseTimer = null;
+
+  function clearBackupAutoClose() {
+    if (backupCloseTimer) {
+      clearTimeout(backupCloseTimer);
+      backupCloseTimer = null;
+    }
+  }
+
+  function scheduleBackupAutoClose() {
+    clearBackupAutoClose();
+    backupCloseTimer = setTimeout(() => { closeBackupPopover(); }, 15000);
+  }
+
+  function closeBackupPopover() {
+    clearBackupAutoClose();
+    const popover = document.getElementById('backup-popover');
+    const gear = document.getElementById('btn-backup-gear');
+    const ddWrap = document.getElementById('delete-dropdown-wrap');
+    if (popover) popover.classList.remove('is-open');
+    if (gear) gear.classList.remove('is-active');
+    if (ddWrap) ddWrap.classList.remove('is-open');
+  }
+
   function setupBackupPopover() {
     const gear = document.getElementById('btn-backup-gear');
     const popover = document.getElementById('backup-popover');
     const ddWrap = document.getElementById('delete-dropdown-wrap');
     const ddToggle = document.getElementById('btn-delete-tag-toggle');
 
-    const closePopover = () => {
-      popover.classList.remove('is-open');
-      gear.classList.remove('is-active');
-      ddWrap.classList.remove('is-open');
-    };
-
     gear.onclick = (e) => {
       e.stopPropagation();
       const isOpen = popover.classList.toggle('is-open');
       gear.classList.toggle('is-active', isOpen);
-      if (!isOpen) ddWrap.classList.remove('is-open');
+      if (isOpen) {
+        scheduleBackupAutoClose();
+      } else {
+        ddWrap.classList.remove('is-open');
+        clearBackupAutoClose();
+      }
     };
 
     ddToggle.onclick = (e) => {
       e.stopPropagation();
       ddWrap.classList.toggle('is-open');
+      scheduleBackupAutoClose();
     };
 
     document.addEventListener('click', (e) => {
       if (!popover.classList.contains('is-open')) return;
       if (e.target.closest('#backup-popover') || e.target.closest('#btn-backup-gear')) return;
-      closePopover();
+      closeBackupPopover();
     });
 
     document.getElementById('btn-delete-all').onclick = (e) => {
@@ -433,7 +463,7 @@
         recentIds = [];
         chrome.storage.local.set({ recentIds: [] });
         save();
-        closePopover();
+        closeBackupPopover();
       }
     };
   }
@@ -471,8 +501,7 @@
           recentIds = recentIds.filter(id => messages.some(m => m.id === id));
           chrome.storage.local.set({ recentIds });
           save();
-          const wrap = document.getElementById('delete-dropdown-wrap');
-          if (wrap) wrap.classList.remove('is-open');
+          closeBackupPopover();
         }
       };
     });
