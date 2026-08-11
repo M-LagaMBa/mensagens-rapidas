@@ -10,6 +10,9 @@
   let isProcessingClick = false; // Trava para evitar duplicação
   let draggedId = null;
   let lastDragOverTime = 0;
+  let selectMode = false;
+  let selectedIds = new Set();
+  let pendingUndo = null; // { items: [{ message, index }], timer }
 
   const TAG_COLORS = ['#00d2ff', '#4ade80', '#fb923c', '#f472b6', '#a78bfa', '#facc15', '#22d3ee', '#f87171'];
 
@@ -26,6 +29,17 @@
     const d = document.createElement('div');
     d.textContent = str == null ? '' : String(str);
     return d.innerHTML;
+  }
+
+  // Escapa o texto e envolve o trecho buscado em <mark> para destaque visual
+  function highlightMatch(text, query) {
+    const escaped = escapeHtml(text);
+    const q = (query || '').trim();
+    if (!q) return escaped;
+    const escQuery = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!escQuery) return escaped;
+    const regex = new RegExp(escQuery, 'ig');
+    return escaped.replace(regex, (match) => `<mark class="msg-highlight">${match}</mark>`);
   }
 
   function generateId() {
@@ -83,9 +97,12 @@
       .tag-label { font-size: 9px; padding: 2px 8px; border-radius: 20px; text-transform: uppercase; font-weight: bold; align-self: flex-start; }
       .msg-text { font-size: 13.5px; line-height: 1.5; color: #d1d5db; word-break: break-word; }
       .card-actions-bottom-left { display: flex; gap: 18px; align-items: center; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); }
-      .tool-icon { font-size: 15px; opacity: 0.4; transition: 0.2s; cursor: pointer; }
+      .tool-icon { font-size: 15px; opacity: 0.55; transition: 0.2s; cursor: pointer; }
       .tool-icon:hover { opacity: 1; color: #00d2ff; }
       .tool-icon.active { opacity: 1; color: #fbbf24; }
+      .fav-icon:hover { color: #fbbf24; }
+      .msg-card.is-editing { border-color: #00d2ff !important; box-shadow: 0 0 0 2px rgba(0,210,255,0.25); }
+      .msg-highlight { background: rgba(0,210,255,0.35); color: #fff; border-radius: 3px; padding: 0 1px; }
       .drag-handle { cursor: grab; }
       .drag-handle:active { cursor: grabbing; }
       .msg-card.dragging { opacity: 0.35; }
@@ -155,6 +172,59 @@
       .btn-danger:disabled:hover { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.35); }
       .btn-backup { flex: 1; font-size: 9px; padding: 6px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-weight: bold; }
       .btn-backup:hover { background: rgba(255,255,255,0.1); border-color: #00d2ff; }
+      .selection-toolbar {
+        display: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+        background: rgba(0,210,255,0.06); border: 1px solid rgba(0,210,255,0.25); border-radius: 10px;
+        padding: 8px 10px; margin-bottom: 10px; font-size: 10px; color: #00d2ff; flex-shrink: 0;
+      }
+      .selection-toolbar.is-visible { display: flex; }
+      .selection-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+      .selection-actions button {
+        font-size: 9px; padding: 5px 8px; background: rgba(255,255,255,0.06); color: #fff;
+        border: 1px solid rgba(255,255,255,0.12); border-radius: 7px; cursor: pointer; text-transform: uppercase; font-weight: bold;
+      }
+      .selection-actions button:hover { border-color: #00d2ff; }
+      .selection-actions .btn-danger-inline { color: #f87171; border-color: rgba(248,113,113,0.35); }
+      .selection-actions .btn-danger-inline:hover { border-color: #f87171; }
+
+      .import-modal-overlay {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+        z-index: 50; opacity: 0; pointer-events: none; transition: 0.15s; border-radius: 24px;
+      }
+      .import-modal-overlay.is-visible { opacity: 1; pointer-events: auto; }
+      .import-modal {
+        background: #10151c; border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 18px;
+        width: 85%; max-width: 280px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      }
+      .import-modal-title { font-size: 12px; font-weight: 800; color: #00d2ff; text-transform: uppercase; letter-spacing: 0.5px; }
+      .import-modal-text { font-size: 11.5px; color: #d1d5db; line-height: 1.5; }
+      .import-modal-actions { display: flex; flex-direction: column; gap: 8px; }
+      .import-modal-actions .btn-backup { padding: 9px 16px; font-size: 11px; border-radius: 10px; letter-spacing: 0.6px; }
+
+      .card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .msg-checkbox-wrap { display: none; }
+      .msg-card.select-mode-active .msg-checkbox-wrap { display: flex; }
+      .msg-card.select-mode-active .card-actions-bottom-left { display: none; }
+      .msg-checkbox { width: 16px; height: 16px; accent-color: #00d2ff; cursor: pointer; }
+      .msg-card.select-mode-active.is-selected { border-color: #00d2ff; background: rgba(0,210,255,0.06); }
+
+      .undo-toast {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        background: #10151c; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+        padding: 0 12px; font-size: 11px; color: #d1d5db; overflow: hidden;
+        max-height: 0; opacity: 0; margin-bottom: 0; flex-shrink: 0;
+        transition: max-height 0.2s ease, opacity 0.2s ease, margin-bottom 0.2s ease, padding 0.2s ease;
+      }
+      .undo-toast.is-visible { max-height: 40px; opacity: 1; margin-bottom: 10px; padding: 9px 12px; }
+      .undo-toast button { background: none; border: none; color: #00d2ff; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; flex-shrink: 0; }
+      .undo-toast button:hover { text-decoration: underline; }
+
+      .skeleton-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+      .skeleton-line { background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 37%, rgba(255,255,255,0.04) 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite; border-radius: 6px; }
+      .skeleton-tag { width: 60px; height: 14px; margin-bottom: 12px; border-radius: 20px; }
+      .skeleton-text-1 { width: 90%; height: 12px; margin-bottom: 8px; }
+      .skeleton-text-2 { width: 65%; height: 12px; }
+      @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
     `;
     document.head.appendChild(style);
   }
@@ -176,6 +246,19 @@
       </div>
       <div class="w-body">
         <input type="text" id="w-search" class="search-input" placeholder="Buscar mensagem...">
+        <div class="undo-toast" id="undo-toast">
+          <span id="undo-toast-text">Mensagem apagada</span>
+          <button id="undo-toast-btn" type="button">Desfazer</button>
+        </div>
+        <div class="selection-toolbar" id="selection-toolbar">
+          <span id="selection-count">0 selecionadas</span>
+          <div class="selection-actions">
+            <button id="btn-select-all-visible" type="button">Selecionar Tudo</button>
+            <button id="btn-selection-export" type="button">Exportar</button>
+            <button id="btn-selection-delete" type="button" class="btn-danger-inline">Apagar</button>
+            <button id="btn-selection-cancel" type="button">Cancelar</button>
+          </div>
+        </div>
         <div class="filter-bar" id="tag-filters"></div>
         <div id="w-list"></div>
       </div>
@@ -190,6 +273,8 @@
           <div class="gear-wrap">
             <button id="btn-backup-gear" class="btn-gear" title="Backup" type="button">⚙</button>
             <div class="backup-popover" id="backup-popover">
+              <button id="btn-select-mode" class="btn-backup" type="button">Selecionar Mensagens</button>
+              <div class="popover-divider"></div>
               <button id="btn-export" class="btn-backup">Exportar</button>
               <button id="btn-import" class="btn-backup">Importar</button>
               <div class="popover-divider"></div>
@@ -206,6 +291,18 @@
         <div class="dev-footer">
           <span class="dev-label">Desenvolvido por</span>
           <span class="dev-name">Lagamba Tech</span>
+        </div>
+      </div>
+
+      <div class="import-modal-overlay" id="import-modal-overlay">
+        <div class="import-modal">
+          <div class="import-modal-title">Importar mensagens</div>
+          <div class="import-modal-text" id="import-modal-text"></div>
+          <div class="import-modal-actions">
+            <button id="import-modal-merge" class="btn-add">Mesclar</button>
+            <button id="import-modal-replace" class="btn-backup btn-danger">Substituir Tudo</button>
+          </div>
+          <div id="import-modal-cancel" class="btn-cancel">Cancelar</div>
         </div>
       </div>
     `;
@@ -347,6 +444,145 @@
     } catch (e) { console.error(e); }
   }
 
+  // APAGAR COM DESFAZER (mensagem individual)
+  function deleteMessageWithUndo(id) {
+    const index = messages.findIndex(x => x.id === id);
+    if (index === -1) return;
+    const [removed] = messages.splice(index, 1);
+    save();
+    showUndoToast([{ message: removed, index }], 'Mensagem apagada');
+  }
+
+  // APAGAR COM DESFAZER (várias mensagens de uma vez, usadas pela seleção em lote)
+  function deleteMessagesWithUndo(ids) {
+    const idSet = new Set(ids);
+    const items = [];
+    messages.forEach((m, i) => { if (idSet.has(m.id)) items.push({ message: m, index: i }); });
+    if (items.length === 0) return;
+    messages = messages.filter(m => !idSet.has(m.id));
+    recentIds = recentIds.filter(id => messages.some(m => m.id === id));
+    chrome.storage.local.set({ recentIds });
+    save();
+    const label = items.length === 1 ? 'Mensagem apagada' : `${items.length} mensagens apagadas`;
+    showUndoToast(items, label);
+  }
+
+  function showUndoToast(items, label) {
+    if (pendingUndo) clearTimeout(pendingUndo.timer);
+    const toast = document.getElementById('undo-toast');
+    if (!toast) { pendingUndo = null; return; }
+    const textEl = document.getElementById('undo-toast-text');
+    if (textEl) textEl.textContent = label;
+    toast.classList.add('is-visible');
+    const timer = setTimeout(() => {
+      toast.classList.remove('is-visible');
+      pendingUndo = null;
+    }, 20000);
+    pendingUndo = { items, timer };
+  }
+
+  function undoDelete() {
+    if (!pendingUndo) return;
+    clearTimeout(pendingUndo.timer);
+    const { items } = pendingUndo;
+    items
+      .slice()
+      .sort((a, b) => a.index - b.index)
+      .forEach(({ message, index }) => {
+        const insertAt = Math.min(index, messages.length);
+        messages.splice(insertAt, 0, message);
+      });
+    pendingUndo = null;
+    const toast = document.getElementById('undo-toast');
+    if (toast) toast.classList.remove('is-visible');
+    save();
+  }
+
+  function setupUndoToast() {
+    document.getElementById('undo-toast-btn').onclick = () => undoDelete();
+  }
+
+  // SELEÇÃO EM LOTE (apagar/exportar várias mensagens de uma vez)
+  function toggleSelect(id) {
+    if (selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    render();
+  }
+
+  function updateSelectionUI() {
+    const countEl = document.getElementById('selection-count');
+    if (countEl) countEl.textContent = `${selectedIds.size} selecionada${selectedIds.size === 1 ? '' : 's'}`;
+  }
+
+  function updateSelectModeButtonLabel() {
+    const btn = document.getElementById('btn-select-mode');
+    if (btn) btn.textContent = selectMode ? 'Sair da Seleção' : 'Selecionar Mensagens';
+  }
+
+  function exitSelectMode() {
+    selectMode = false;
+    selectedIds.clear();
+    const toolbar = document.getElementById('selection-toolbar');
+    if (toolbar) toolbar.classList.remove('is-visible');
+    updateSelectModeButtonLabel();
+    render();
+  }
+
+  function setupSelectionMode() {
+    document.getElementById('btn-select-mode').onclick = () => {
+      selectMode = !selectMode;
+      selectedIds.clear();
+      document.getElementById('selection-toolbar').classList.toggle('is-visible', selectMode);
+      updateSelectModeButtonLabel();
+      closeBackupPopover();
+      render();
+    };
+
+    document.getElementById('btn-selection-cancel').onclick = () => exitSelectMode();
+
+    document.getElementById('btn-select-all-visible').onclick = () => {
+      const visible = getFilteredMessages();
+      const allSelected = visible.length > 0 && visible.every(m => selectedIds.has(m.id));
+      if (allSelected) visible.forEach(m => selectedIds.delete(m.id));
+      else visible.forEach(m => selectedIds.add(m.id));
+      render();
+    };
+
+    document.getElementById('btn-selection-export').onclick = () => {
+      if (selectedIds.size === 0) return alert("Nenhuma mensagem selecionada.");
+      const toExport = messages.filter(m => selectedIds.has(m.id));
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(toExport, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", "mensagens_selecionadas.json");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+
+    document.getElementById('btn-selection-delete').onclick = () => {
+      if (selectedIds.size === 0) return alert("Nenhuma mensagem selecionada.");
+      const count = selectedIds.size;
+      if (confirm(`Apagar as ${count} mensagens selecionadas?`)) {
+        deleteMessagesWithUndo(Array.from(selectedIds));
+        selectedIds.clear();
+        selectMode = false;
+        document.getElementById('selection-toolbar').classList.remove('is-visible');
+        updateSelectModeButtonLabel();
+      }
+    };
+  }
+
+  // SINCRONIZAÇÃO ENTRE ABAS
+  function setupStorageSync() {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      let shouldRender = false;
+      if (changes.myMsgs) { messages = changes.myMsgs.newValue || []; shouldRender = true; }
+      if (changes.recentIds) { recentIds = changes.recentIds.newValue || []; shouldRender = true; }
+      if (shouldRender && document.getElementById('w-list')) render();
+    });
+  }
+
   // FUNÇÕES DE BACKUP (EXPORTAR / IMPORTAR)
   function setupBackup() {
     document.getElementById('btn-export').onclick = () => {
@@ -386,16 +622,62 @@
             fav: !!item.fav
           }));
 
-          if (confirm(`Deseja importar ${normalized.length} mensagens? Isso substituirá as atuais.`)) {
-            messages = normalized;
-            save();
-            closeBackupPopover(); // fecha somente após a importação ser concluída
-          }
+          showImportChoice(normalized.length).then((choice) => {
+            if (choice === 'replace') {
+              messages = normalized;
+              save();
+              closeBackupPopover();
+            } else if (choice === 'merge') {
+              const existingIds = new Set(messages.map(m => m.id));
+              let mergeCounter = Date.now();
+              const merged = normalized.map(item => {
+                if (existingIds.has(item.id)) {
+                  let newId = mergeCounter++;
+                  while (existingIds.has(newId)) newId++;
+                  existingIds.add(newId);
+                  return { ...item, id: newId };
+                }
+                existingIds.add(item.id);
+                return item;
+              });
+              messages = [...messages, ...merged];
+              save();
+              closeBackupPopover();
+            }
+            // choice === null → usuário cancelou, não faz nada
+          });
         } catch (err) { alert("Erro ao ler o arquivo JSON."); }
         e.target.value = ''; // Limpa o input
       };
       reader.readAsText(file);
     };
+  }
+
+  // Modal de escolha ao importar (substituir ou mesclar), com botões em vez de prompt()
+  function showImportChoice(count) {
+    return new Promise((resolve) => {
+      const overlay = document.getElementById('import-modal-overlay');
+      const text = document.getElementById('import-modal-text');
+      const mergeBtn = document.getElementById('import-modal-merge');
+      const replaceBtn = document.getElementById('import-modal-replace');
+      const cancelBtn = document.getElementById('import-modal-cancel');
+      if (!overlay || !text || !mergeBtn || !replaceBtn || !cancelBtn) { resolve(null); return; }
+
+      text.textContent = `Encontradas ${count} mensagens no arquivo. O que deseja fazer?`;
+      overlay.classList.add('is-visible');
+
+      const cleanup = (result) => {
+        overlay.classList.remove('is-visible');
+        mergeBtn.onclick = null;
+        replaceBtn.onclick = null;
+        cancelBtn.onclick = null;
+        resolve(result);
+      };
+
+      mergeBtn.onclick = () => cleanup('merge');
+      replaceBtn.onclick = () => cleanup('replace');
+      cancelBtn.onclick = () => cleanup(null);
+    });
   }
 
   // MENU FLUTUANTE DE BACKUP (ENGRENAGEM)
@@ -454,15 +736,20 @@
       closeBackupPopover();
     });
 
+    // Pausa a contagem de fechamento automático enquanto o mouse está sobre as opções
+    popover.addEventListener('mouseenter', () => {
+      if (popover.classList.contains('is-open')) clearBackupAutoClose();
+    });
+    popover.addEventListener('mouseleave', () => {
+      if (popover.classList.contains('is-open')) scheduleBackupAutoClose();
+    });
+
     document.getElementById('btn-delete-all').onclick = (e) => {
       e.stopPropagation();
       if (messages.length === 0) return alert("Não há mensagens salvas para apagar.");
       const total = messages.length;
-      if (confirm(`Atenção: essa ação vai apagar TODAS as ${total} mensagens salvas, de todas as categorias, e não pode ser desfeita.\n\nDeseja continuar?`)) {
-        messages = [];
-        recentIds = [];
-        chrome.storage.local.set({ recentIds: [] });
-        save();
+      if (confirm(`Apagar TODAS as ${total} mensagens salvas, de todas as categorias?`)) {
+        deleteMessagesWithUndo(messages.map(m => m.id));
         closeBackupPopover();
       }
     };
@@ -496,11 +783,9 @@
         e.stopPropagation();
         const tag = btn.dataset.tag;
         const count = tagCounts[tag] || 0;
-        if (confirm(`Atenção: essa ação vai apagar todas as ${count} mensagens da categoria "${tag}", e não pode ser desfeita.\n\nDeseja continuar?`)) {
-          messages = messages.filter(m => (m.tag || 'GERAL') !== tag);
-          recentIds = recentIds.filter(id => messages.some(m => m.id === id));
-          chrome.storage.local.set({ recentIds });
-          save();
+        if (confirm(`Apagar todas as ${count} mensagens da categoria "${tag}"?`)) {
+          const ids = messages.filter(m => (m.tag || 'GERAL') === tag).map(m => m.id);
+          deleteMessagesWithUndo(ids);
           closeBackupPopover();
         }
       };
@@ -588,31 +873,54 @@
 
   function buildCard(m, list) {
     const card = document.createElement('div');
-    card.className = `msg-card ${m.fav ? 'is-fav' : ''}`;
+    card.className = [
+      'msg-card',
+      m.fav ? 'is-fav' : '',
+      m.id === editingId ? 'is-editing' : '',
+      selectMode ? 'select-mode-active' : '',
+      selectMode && selectedIds.has(m.id) ? 'is-selected' : ''
+    ].filter(Boolean).join(' ');
     card.dataset.id = m.id;
     const color = colorForTag(m.tag || 'GERAL');
     card.innerHTML = `
-      <div class="tag-label" style="color:${color}; background:${color}1a; border:1px solid ${color}40;">${escapeHtml(m.tag || 'GERAL')}</div>
+      <div class="card-header-row">
+        <div class="tag-label" style="color:${color}; background:${color}1a; border:1px solid ${color}40;">${escapeHtml(m.tag || 'GERAL')}</div>
+        <label class="msg-checkbox-wrap"><input type="checkbox" class="msg-checkbox" ${selectedIds.has(m.id) ? 'checked' : ''}></label>
+      </div>
       <div class="msg-text"></div>
       <div class="card-actions-bottom-left">
         <span class="tool-icon drag-handle" title="Clique e arraste o card para reordenar">⠿</span>
-        <span class="tool-icon fav-icon ${m.fav ? 'active' : ''}">★</span>
-        <span class="tool-icon edit-txt">📝</span>
-        <span class="tool-icon edit-tag">🏷️</span>
-        <span class="tool-icon del-msg">🗑️</span>
+        <span class="tool-icon fav-icon ${m.fav ? 'active' : ''}" title="${m.fav ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">★</span>
+        <span class="tool-icon edit-txt" title="Editar o texto da mensagem">📝</span>
+        <span class="tool-icon edit-tag" title="Editar a categoria (tag)">🏷️</span>
+        <span class="tool-icon del-msg" title="Apagar esta mensagem">🗑️</span>
       </div>
     `;
-    // texto inserido via textContent para não interpretar HTML digitado pelo usuário
-    card.querySelector('.msg-text').textContent = m.text;
+    // texto inserido com destaque do termo buscado (já escapado, seguro contra HTML do usuário)
+    card.querySelector('.msg-text').innerHTML = highlightMatch(m.text, searchQuery);
 
-    card.onclick = (e) => { if (!e.target.closest('.card-actions-bottom-left')) smartFill(m.text, m.id, card); };
+    card.onclick = (e) => {
+      if (selectMode) {
+        e.stopPropagation();
+        toggleSelect(m.id);
+        return;
+      }
+      if (!e.target.closest('.card-actions-bottom-left')) smartFill(m.text, m.id, card);
+    };
+    card.querySelector('.msg-checkbox').onclick = (e) => { e.stopPropagation(); toggleSelect(m.id); };
     card.querySelector('.fav-icon').onclick = (e) => { e.stopPropagation(); m.fav = !m.fav; save(); };
-    card.querySelector('.edit-txt').onclick = (e) => { e.stopPropagation(); editingId = m.id; document.getElementById('w-input').value = m.text; toggleAdd(true, true); };
+    card.querySelector('.edit-txt').onclick = (e) => {
+      e.stopPropagation();
+      editingId = m.id;
+      render();
+      document.getElementById('w-input').value = m.text;
+      toggleAdd(true, true);
+    };
     card.querySelector('.edit-tag').onclick = (e) => { e.stopPropagation(); const nt = prompt("Nova Tag:", m.tag); if (nt) { m.tag = nt.toUpperCase(); save(); } };
-    card.querySelector('.del-msg').onclick = (e) => { e.stopPropagation(); if (confirm("Apagar?")) { messages = messages.filter(x => x.id !== m.id); save(); } };
+    card.querySelector('.del-msg').onclick = (e) => { e.stopPropagation(); deleteMessageWithUndo(m.id); };
 
     // REORDENAÇÃO (Drag and Drop)
-    card.draggable = true;
+    card.draggable = !selectMode;
     card.addEventListener('dragstart', (e) => {
       e.stopPropagation();
       draggedId = m.id;
@@ -641,12 +949,20 @@
     return card;
   }
 
+  function pruneSelection() {
+    if (selectedIds.size === 0) return;
+    const existingIds = new Set(messages.map(m => m.id));
+    selectedIds.forEach(id => { if (!existingIds.has(id)) selectedIds.delete(id); });
+  }
+
   function render() {
     const list = document.getElementById('w-list');
     list.innerHTML = '';
 
+    pruneSelection();
     renderFilterBar();
     renderDeleteDropdownItems();
+    updateSelectionUI();
 
     const filtered = getFilteredMessages();
     if (filtered.length === 0) {
@@ -655,6 +971,18 @@
     }
 
     filtered.forEach(m => list.appendChild(buildCard(m, list)));
+  }
+
+  function renderSkeleton() {
+    const list = document.getElementById('w-list');
+    if (!list) return;
+    list.innerHTML = Array.from({ length: 4 }).map(() => `
+      <div class="skeleton-card">
+        <div class="skeleton-line skeleton-tag"></div>
+        <div class="skeleton-line skeleton-text-1"></div>
+        <div class="skeleton-line skeleton-text-2"></div>
+      </div>
+    `).join('');
   }
 
   function toggleAdd(show, isEdit = false) {
@@ -670,7 +998,16 @@
 
   function setupFormHandlers() {
     document.getElementById('btn-open-add').onclick = () => toggleAdd(true);
-    document.getElementById('w-cancel').onclick = () => toggleAdd(false);
+    document.getElementById('w-cancel').onclick = () => {
+      const currentText = document.getElementById('w-input').value.trim();
+      const originalMsg = editingId ? messages.find(x => x.id === editingId) : null;
+      const originalText = originalMsg ? originalMsg.text : '';
+      if (currentText && currentText !== originalText) {
+        if (!confirm('Tem certeza? O texto será perdido.')) return;
+      }
+      toggleAdd(false);
+      render();
+    };
 
     document.getElementById('w-save').onclick = () => {
       const txt = document.getElementById('w-input').value.trim();
@@ -696,6 +1033,7 @@
     injectStyles();
     const widget = buildWidgetDom();
     document.body.appendChild(widget);
+    renderSkeleton();
 
     applySavedGeometry(widget);
     setupResize(widget);
@@ -705,6 +1043,9 @@
     setupBackupPopover();
     setupSearch();
     setupFormHandlers();
+    setupUndoToast();
+    setupSelectionMode();
+    setupStorageSync();
 
     chrome.storage.local.get(['myMsgs', 'recentIds'], (res) => {
       messages = res.myMsgs || [];

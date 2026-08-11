@@ -6,21 +6,27 @@
 
 - **Widget Flutuante**: Interface moderna, semi-transparente e com efeito de vidro (blur), que pode ser movida e redimensionada na tela.
 - **Redimensionamento Total**: Ajuste a largura pelas laterais e a altura pelo topo e rodapé do widget. O tamanho e a posição ficam salvos e são restaurados mesmo depois de recarregar a página.
-- **Busca por Texto**: Filtre a lista de mensagens digitando um trecho do texto, além do filtro por tag.
+- **Busca por Texto**: Filtre a lista de mensagens digitando um trecho do texto, além do filtro por tag. O trecho encontrado fica destacado no card, atualizando em tempo real.
 - **Método Nuclear de Preenchimento**: Algoritmo robusto que localiza campos de texto mesmo dentro de múltiplos iFrames, limpando o campo antes da inserção para evitar erros.
 - **Trava Anti-Duplicidade**: Sistema de controle de fluxo que impede a inserção duplicada de mensagens em cliques rápidos ou instabilidades do site.
 - **Confirmação Visual**: Ao inserir uma mensagem, o card pisca em verde por um instante confirmando que o texto foi enviado ao campo.
 - **Categorização por Tags**: Organize suas mensagens por categorias (Ex: GERAL, FINANCEIRO, SUPORTE), cada uma com uma cor própria para identificação rápida.
 - **Contador por Categoria**: Cada filtro de tag mostra quantas mensagens existem naquela categoria.
-- **Sistema de Favoritos**: Marque as mensagens mais usadas com uma estrela (que brilha em amarelo quando ativa) para que fiquem no topo da lista.
+- **Sistema de Favoritos**: Marque as mensagens mais usadas com uma estrela (que brilha em amarelo quando ativa, inclusive ao passar o mouse) para que fiquem no topo da lista.
 - **Aba de Recentes**: Acesse rapidamente as últimas 5 mensagens que você inseriu, sem precisar procurar na lista.
 - **Reordenação por Arraste**: Clique e arraste qualquer card para reorganizar suas mensagens na ordem que preferir. Favoritas continuam fixadas no topo, mas podem ser reordenadas entre si, assim como as demais.
 - **Filtros Ágeis**: Filtre rapidamente por tags, veja apenas as favoritadas ou as recentes.
-- **Menu de Backup**: Um ícone de engrenagem ao lado do botão de incluir mensagem abre um menu compacto com todas as ações de backup, sem ocupar espaço permanente na tela. O menu fecha automaticamente após 15 segundos de inatividade, e também assim que uma exportação ou importação é concluída.
-  - **Exportar / Importar**: Salve todas as mensagens em um arquivo JSON ou restaure a partir de um backup. A importação valida a estrutura do arquivo antes de aplicar, evitando dados corrompidos.
+- **Desfazer Exclusão**: Ao apagar uma mensagem individual, uma barra permite desfazer a ação por 5 segundos antes de ser definitiva.
+- **Aviso de Texto Não Salvo**: Cancelar o formulário com texto digitado (e ainda não salvo) pede confirmação antes de descartar.
+- **Indicador de Edição**: O card que está sendo editado no momento fica com a borda destacada, deixando claro qual mensagem o formulário está alterando.
+- **Sincronização Entre Abas**: Alterações feitas em uma aba (editar, apagar, favoritar) aparecem automaticamente em outras abas abertas com o widget.
+- **Menu de Backup**: Um ícone de engrenagem ao lado do botão de incluir mensagem abre um menu compacto com todas as ações de gerenciamento, sem ocupar espaço permanente na tela. O menu fecha automaticamente após 15 segundos de inatividade (pausando enquanto o mouse está sobre as opções), e também assim que uma exportação ou importação é concluída.
+  - **Selecionar Mensagens**: Ativa checkboxes nos cards para marcar várias mensagens específicas e apagar ou exportar só aquelas de uma vez, com opção de "Selecionar Tudo" para marcar todas as visíveis no filtro atual.
+  - **Exportar / Importar**: Salve todas as mensagens em um arquivo JSON ou restaure a partir de um backup. Ao importar, um modal com botões deixa escolher entre **Mesclar** (soma às mensagens atuais) ou **Substituir Tudo**. A importação valida a estrutura do arquivo antes de aplicar, evitando dados corrompidos.
   - **Apagar Categoria**: Um dropdown discreto e rolável lista todas as tags com a quantidade de mensagens de cada uma. Clicar em uma tag apaga só as mensagens daquela categoria, sempre pedindo confirmação antes.
   - **Apagar Tudo**: Remove todas as mensagens salvas de uma vez, também com confirmação obrigatória informando o total que será apagado.
 - **Estado Vazio Orientativo**: Quando não há mensagens cadastradas ou nenhuma bate com o filtro/busca, o widget mostra uma mensagem explicando o que fazer.
+- **Skeleton de Carregamento**: Enquanto as mensagens são carregadas, blocos animados ocupam o lugar da lista, evitando a sensação de tela vazia.
 - **Atalhos de Teclado**: `Alt + Q` abre ou fecha o widget instantaneamente. `Alt + N` abre o widget direto no formulário de nova mensagem.
 
 ## 🌐 Domínios Suportados
@@ -51,9 +57,26 @@
 4. Para encontrar uma mensagem rapidamente, use o campo de busca ou os filtros de tag/favoritos/recentes no topo da lista.
 5. Para redimensionar, arraste qualquer uma das quatro bordas do widget. O tamanho e a posição ficam salvos automaticamente.
 6. Para reordenar, clique e arraste o card da mensagem para a posição desejada.
-7. Para fazer backup ou apagar mensagens, clique no ícone de engrenagem (⚙) ao lado de "Incluir Mensagem". Lá você encontra Exportar, Importar, Apagar Categoria (com confirmação) e Apagar Tudo (com confirmação).
+7. Para fazer backup, apagar mensagens ou selecionar várias de uma vez, clique no ícone de engrenagem (⚙) ao lado de "Incluir Mensagem". Lá você encontra Selecionar Mensagens, Exportar, Importar, Apagar Categoria e Apagar Tudo (todas as exclusões pedem confirmação).
 
 ## 🔧 Changelog
+
+### v3.5
+- Adicionados tooltips (dica ao passar o mouse) em todos os botões de ação do card: favoritar, editar texto, editar categoria e apagar.
+- Padronizada a cor do hover da estrela de favoritos para dourado, igual ao estado "já favoritado" (antes ficava azul).
+- Aumentada a opacidade padrão dos ícones de ação quando inativos, melhorando a visibilidade em telas com brilho mais baixo.
+- O menu da engrenagem agora pausa o fechamento automático (15s) enquanto o mouse está sobre as opções, fechando só quando o usuário realmente se afasta.
+- Adicionado destaque visual (highlight) no trecho de texto encontrado pela busca, atualizado em tempo real conforme o usuário digita.
+- Adicionada sincronização entre abas: alterações feitas em uma aba (editar, apagar, favoritar) refletem automaticamente em outras abas abertas com o widget, sem precisar recarregar a página.
+- Adicionado "Desfazer" ao apagar uma mensagem individual: uma barra exibe a opção de desfazer por 5 segundos antes da exclusão se tornar definitiva.
+- Adicionado aviso de confirmação ao clicar em "Cancelar" no formulário com texto não salvo (novo ou diferente do original, em caso de edição), evitando perda acidental de texto.
+- Substituído o `prompt()` de escolha ao importar por um modal com botões "Mesclar", "Substituir Tudo" e "Cancelar", eliminando a necessidade de digitar 1 ou 2. A opção de mesclar soma o backup importado às mensagens atuais, gerando novos IDs automaticamente em caso de conflito.
+- Adicionado modo de seleção em lote: um botão "Selecionar Mensagens" dentro do menu da engrenagem ativa checkboxes nos cards, permitindo selecionar várias mensagens específicas para apagar ou exportar de uma vez (com "Selecionar Tudo" para marcar todas as visíveis no filtro atual).
+- Adicionado skeleton de carregamento (blocos "pulsando") enquanto as mensagens são carregadas do armazenamento, no lugar de uma lista em branco por um instante.
+- Adicionado destaque de borda no card que está sendo editado, deixando claro qual mensagem o formulário está alterando.
+- Corrigido bug em que o clique em "Importar" fechava o menu da engrenagem imediatamente ao abrir o seletor de arquivo, em vez de fechar somente após a importação ser concluída.
+- Corrigida limpeza de seleções "órfãs": se uma categoria inteira (ou todas as mensagens) for apagada enquanto havia itens marcados no modo de seleção em lote, a contagem de selecionados agora se ajusta automaticamente.
+- Ícones do pacote da extensão (16, 32, 48 e 128px) redesenhados para melhor legibilidade nos tamanhos pequenos.
 
 ### v3.4
 - Corrigido conflito entre `min-height`/`min-width` da regra base e o estado minimizado, que impedia o widget de encolher corretamente ao minimizar.
