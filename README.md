@@ -16,7 +16,7 @@
 - **Aba de Recentes**: Acesse rapidamente as últimas 5 mensagens que você inseriu, sem precisar procurar na lista.
 - **Reordenação por Arraste**: Clique e arraste qualquer card para reorganizar suas mensagens na ordem que preferir. Favoritas continuam fixadas no topo, mas podem ser reordenadas entre si, assim como as demais.
 - **Filtros Ágeis**: Filtre rapidamente por tags, veja apenas as favoritadas ou as recentes.
-- **Desfazer Exclusão**: Ao apagar uma mensagem individual, uma barra permite desfazer a ação por 5 segundos antes de ser definitiva.
+- **Desfazer Exclusão**: Ao apagar uma mensagem individual, uma barra permite desfazer a ação por 20 segundos para restaurar a mensagem.
 - **Aviso de Texto Não Salvo**: Cancelar o formulário com texto digitado (e ainda não salvo) pede confirmação antes de descartar.
 - **Indicador de Edição**: O card que está sendo editado no momento fica com a borda destacada, deixando claro qual mensagem o formulário está alterando.
 - **Sincronização Entre Abas**: Alterações feitas em uma aba (editar, apagar, favoritar) aparecem automaticamente em outras abas abertas com o widget.
@@ -27,7 +27,7 @@
   - **Apagar Tudo**: Remove todas as mensagens salvas de uma vez, também com confirmação obrigatória informando o total que será apagado.
 - **Estado Vazio Orientativo**: Quando não há mensagens cadastradas ou nenhuma bate com o filtro/busca, o widget mostra uma mensagem explicando o que fazer.
 - **Skeleton de Carregamento**: Enquanto as mensagens são carregadas, blocos animados ocupam o lugar da lista, evitando a sensação de tela vazia.
-- **Atalhos de Teclado**: `Alt + Q` abre ou fecha o widget instantaneamente. `Alt + N` abre o widget direto no formulário de nova mensagem.
+- **Atalhos de Teclado**: `Alt + Q` abre o widget expandido quando fechado e alterna entre minimizar à barra de título e restaurar o tamanho anterior quando visível. `Alt + W` fecha ou reabre o widget, preservando seu estado. `Alt + N` abre o widget direto no formulário de nova mensagem.
 
 ## 🌐 Domínios Suportados
 
@@ -52,7 +52,7 @@
 ## 📌 Uso
 
 1. Clique em **Incluir Mensagem** para cadastrar seus textos (ou use `Alt + N`).
-2. Defina uma **Tag** para organizar a mensagem.
+2. Escreva a mensagem e clique em **Salvar**. Na etapa seguinte, selecione uma tag já cadastrada ou digite uma nova e confirme para salvar. A lista usa a rolagem no estilo da extensão. Tag vazia usa **GERAL**; **Voltar ao texto** preserva o rascunho. O ícone de tag abre diretamente essa etapa na edição.
 3. Para usar: **Clique primeiro no campo de texto** (onde você digita no chat ou na barra de busca) e depois clique na mensagem desejada dentro do widget.
 4. Para encontrar uma mensagem rapidamente, use o campo de busca ou os filtros de tag/favoritos/recentes no topo da lista.
 5. Para redimensionar, arraste qualquer uma das quatro bordas do widget. O tamanho e a posição ficam salvos automaticamente.
@@ -61,6 +61,11 @@
 
 ## 🔧 Changelog
 
+### v3.6
+- O atalho `Alt + Q` abre o widget e alterna entre minimizar e restaurar; `Alt + W` fecha ou reabre o widget preservando o estado.
+- O cadastro de mensagens agora separa a escolha da tag em uma segunda etapa dentro do widget, oferecendo seleção de tags existentes ou criação de uma nova.
+- Corrigidos preenchimento no campo ativo, importação com IDs únicos, sincronização entre abas, persistência de rascunhos e isolamento visual do widget.
+
 ### v3.5
 - Adicionados tooltips (dica ao passar o mouse) em todos os botões de ação do card: favoritar, editar texto, editar categoria e apagar.
 - Padronizada a cor do hover da estrela de favoritos para dourado, igual ao estado "já favoritado" (antes ficava azul).
@@ -68,7 +73,7 @@
 - O menu da engrenagem agora pausa o fechamento automático (15s) enquanto o mouse está sobre as opções, fechando só quando o usuário realmente se afasta.
 - Adicionado destaque visual (highlight) no trecho de texto encontrado pela busca, atualizado em tempo real conforme o usuário digita.
 - Adicionada sincronização entre abas: alterações feitas em uma aba (editar, apagar, favoritar) refletem automaticamente em outras abas abertas com o widget, sem precisar recarregar a página.
-- Adicionado "Desfazer" ao apagar uma mensagem individual: uma barra exibe a opção de desfazer por 5 segundos antes da exclusão se tornar definitiva.
+- Adicionado "Desfazer" ao apagar uma mensagem individual: uma barra exibe a opção de desfazer por 20 segundos para restaurar a mensagem.
 - Adicionado aviso de confirmação ao clicar em "Cancelar" no formulário com texto não salvo (novo ou diferente do original, em caso de edição), evitando perda acidental de texto.
 - Substituído o `prompt()` de escolha ao importar por um modal com botões "Mesclar", "Substituir Tudo" e "Cancelar", eliminando a necessidade de digitar 1 ou 2. A opção de mesclar soma o backup importado às mensagens atuais, gerando novos IDs automaticamente em caso de conflito.
 - Adicionado modo de seleção em lote: um botão "Selecionar Mensagens" dentro do menu da engrenagem ativa checkboxes nos cards, permitindo selecionar várias mensagens específicas para apagar ou exportar de uma vez (com "Selecionar Tudo" para marcar todas as visíveis no filtro atual).
@@ -108,3 +113,14 @@
 - Corrigida permissão `scripting` ausente no manifest, que impedia a injeção do widget quando a extensão era aberta pela primeira vez em uma aba.
 - Corrigido comportamento em que o widget não abria no primeiro clique após a injeção do script, exigindo um segundo clique.
 - Corrigido vazamento de listener de `mouseup` durante o redimensionamento lateral.
+## Verificação local
+
+Os testes usam dados fictícios e não acessam ASC/Blip.
+
+- Sintaxe: `node --check content.js` e `node --check background.js`.
+- Persistência: `node --test tests/storage.test.cjs` (Node.js com suporte a `node:test`).
+- Interface isolada: `node tests/browser.cjs` (Playwright e Microsoft Edge instalados). Se Playwright não estiver na resolução padrão do Node, defina `PLAYWRIGHT_MODULE` com o caminho do módulo.
+
+Os testes de interface simulam as APIs da extensão. A integração com o DOM e os eventos dos chats reais precisa ser verificada separadamente em ambiente autorizado.
+
+As gravações de mensagens são serializadas pelo service worker. Mudanças em mensagens ou campos diferentes são preservadas; alterações concorrentes no mesmo campo seguem a última gravação. “Substituir Tudo” substitui deliberadamente a lista inteira. Falhas de gravação são informadas e o rascunho do formulário é preservado.
