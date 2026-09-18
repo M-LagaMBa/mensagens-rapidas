@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Widgetize",
   "description": "Mensagens rápidas para o SAC Messenger.",
-  "version": "3.5",
+  "version": "3.6",
   "permissions": ["storage", "scripting", "activeTab"],
   "host_permissions": [
     "*://*.ascbrazil.com.br/*",
